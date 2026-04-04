@@ -1,10 +1,18 @@
 'use client';
 
+import HumanVoteABI from '@/abi/HumanVote.json';
 import { Page } from '@/components/PageLayout';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { NavArrowLeft } from 'iconoir-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { keccak256, toHex } from 'viem';
+
+const HUMANVOTE_CONTRACT = process.env.NEXT_PUBLIC_HUMANVOTE_CONTRACT || '0x0000000000000000000000000000000000000000';
+
+function toBytes32(str: string): `0x${string}` {
+  return keccak256(toHex(str));
+}
 
 export default function NewCompetition() {
   const router = useRouter();
@@ -33,6 +41,29 @@ export default function NewCompetition() {
       }
 
       const competition = await res.json();
+
+      // Record competition on-chain (best-effort)
+      if (HUMANVOTE_CONTRACT !== '0x0000000000000000000000000000000000000000') {
+        try {
+          const { MiniKit } = await import('@worldcoin/minikit-js');
+          if (MiniKit.isInstalled()) {
+            const endsAtTimestamp = Math.floor(new Date(`${endDate}T${endTime}`).getTime() / 1000);
+            await MiniKit.commandsAsync.sendTransaction({
+              transaction: [
+                {
+                  address: HUMANVOTE_CONTRACT as `0x${string}`,
+                  abi: HumanVoteABI,
+                  functionName: 'createCompetition',
+                  args: [toBytes32(competition.id), BigInt(endsAtTimestamp)],
+                },
+              ],
+            });
+          }
+        } catch {
+          // On-chain creation failed — DB record exists, continue
+        }
+      }
+
       router.push(`/competitions/${competition.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -84,13 +115,12 @@ export default function NewCompetition() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              End Date (YYYY-MM-DD)
+              End Date
             </label>
             <input
-              type="text"
+              type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              placeholder="2026-04-10"
               required
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
             />
@@ -98,13 +128,12 @@ export default function NewCompetition() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              End Time (HH:MM)
+              End Time
             </label>
             <input
-              type="text"
+              type="time"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              placeholder="23:59"
               required
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
             />

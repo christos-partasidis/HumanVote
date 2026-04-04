@@ -1,11 +1,20 @@
 'use client';
 
+import HumanVoteABI from '@/abi/HumanVote.json';
 import { Page } from '@/components/PageLayout';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { NavArrowLeft } from 'iconoir-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { keccak256, toHex } from 'viem';
+
+// TODO: Replace with your deployed contract address after deploying via Remix
+const HUMANVOTE_CONTRACT = process.env.NEXT_PUBLIC_HUMANVOTE_CONTRACT || '0x0000000000000000000000000000000000000000';
+
+function toBytes32(str: string): `0x${string}` {
+  return keccak256(toHex(str));
+}
 
 interface Entry {
   id: string;
@@ -172,6 +181,7 @@ function VoteButton({
     'idle'
   );
   const [errorMsg, setErrorMsg] = useState('');
+  const [txStatus, setTxStatus] = useState<'none' | 'pending' | 'confirmed' | 'failed'>('none');
 
   const handleVote = async () => {
     setStatus('voting');
@@ -218,7 +228,7 @@ function VoteButton({
         throw new Error('Verification cancelled or failed');
       }
 
-      // Step 3: Send proof to our vote API
+      // Step 3: Send proof to our vote API (DB write)
       const voteRes = await fetch('/api/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -238,6 +248,39 @@ function VoteButton({
 
       setStatus('voted');
       onVoted();
+
+      // Step 4: Record vote on-chain (best-effort — DB vote already counted)
+      if (HUMANVOTE_CONTRACT !== '0x0000000000000000000000000000000000000000') {
+        try {
+          setTxStatus('pending');
+          const nullifierHash = (result.finalPayload as { nullifier_hash?: string }).nullifier_hash || '';
+
+          const txResult = await MiniKit.commandsAsync.sendTransaction({
+            transaction: [
+              {
+                address: HUMANVOTE_CONTRACT as `0x${string}`,
+                abi: HumanVoteABI,
+                functionName: 'vote',
+                args: [
+                  toBytes32(competitionId),
+                  toBytes32(entryId),
+                  toBytes32(nullifierHash),
+                ],
+              },
+            ],
+          });
+
+          const txPayload = txResult.finalPayload as { status?: string; transaction_id?: string };
+          if (txPayload.status === 'error') {
+            setTxStatus('failed');
+          } else {
+            setTxStatus('confirmed');
+          }
+        } catch {
+          // On-chain tx failed, but DB vote is recorded — that's fine
+          setTxStatus('failed');
+        }
+      }
     } catch (err) {
       setStatus('error');
       setErrorMsg(
@@ -248,9 +291,23 @@ function VoteButton({
 
   if (status === 'voted') {
     return (
-      <span className="text-xs text-green-600 font-medium">
-        Vote recorded!
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-green-600 font-medium">
+          Vote recorded!
+        </span>
+        {txStatus === 'pending' && (
+          <span className="text-xs text-yellow-600 animate-pulse">Recording on-chain...</span>
+        )}
+        {txStatus === 'confirmed' && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            On-chain
+          </span>
+        )}
+        {txStatus === 'failed' && (
+          <span className="text-xs text-gray-400">(off-chain only)</span>
+        )}
+      </div>
     );
   }
 
