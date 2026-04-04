@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 // GET /api/competitions — List all competitions
 export async function GET() {
   try {
+    console.log("TURSO_DATABASE_URL:", process.env.TURSO_DATABASE_URL);
     const competitions = await prisma.competition.findMany({
       orderBy: { createdAt: "desc" },
       include: {
