@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { keccak256, toHex } from 'viem';
 
-const HUMANVOTE_CONTRACT = process.env.NEXT_PUBLIC_HUMANVOTE_CONTRACT || '0x0000000000000000000000000000000000000000';
+const HUMANVOTE_CONTRACT = process.env.NEXT_PUBLIC_HUMANVOTE_CONTRACT || '0xbf569bCAb95367d4ce8F9311EBC40554e33Db5af';
 
 function toBytes32(str: string): `0x${string}` {
   return keccak256(toHex(str));
