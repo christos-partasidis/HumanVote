@@ -15,7 +15,7 @@ import { getNewNonces } from './server-helpers';
 export const walletAuth = async () => {
   const { nonce, signedNonce } = await getNewNonces();
 
-  const result = await MiniKit.walletAuth({
+  const result = await MiniKit.commandsAsync.walletAuth({
     nonce,
     expirationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     notBefore: new Date(Date.now() - 24 * 60 * 60 * 1000),
@@ -23,15 +23,16 @@ export const walletAuth = async () => {
   });
   console.log('Result', result);
 
+  const payload = result.finalPayload;
+
+  if ('status' in payload && payload.status === 'error') {
+    throw new Error('Wallet auth failed');
+  }
+
   await signIn('credentials', {
     redirectTo: '/home',
     nonce,
     signedNonce,
-    finalPayloadJson: JSON.stringify({
-      status: 'success',
-      address: result.data.address,
-      message: result.data.message,
-      signature: result.data.signature,
-    }),
+    finalPayloadJson: JSON.stringify(payload),
   });
 };
