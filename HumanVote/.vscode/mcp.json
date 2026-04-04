@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "world": {
+      "type": "http",
+      "url": "https://docs.world.org/mcp"
+    }
+  }
+}

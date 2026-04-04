@@ -1,0 +1,218 @@
+================================================================================
+HUMANVOTE - PROJECT PLAN & SESSION SUMMARY
+================================================================================
+
+REPO: https://github.com/christos-partasidis/HumanVote
+LOCAL PATH: /Users/christospartasidis/Desktop/Gate/Study/Blockchain/ETH Hackathon/HumanVote/HumanVote
+
+================================================================================
+PROJECT DESCRIPTION
+================================================================================
+
+Decentralized voting for competitions! Participating in a competition? That
+could be a hackathon, eurovision, san remo and want to verify that real humans
+vote for the best project/song/idea? Use our app!
+
+Built as a World Mini App using World ID for proof-of-human verification.
+
+================================================================================
+WHAT WE COMPLETED (Session 1)
+================================================================================
+
+1. SCAFFOLDED the project using `npx @worldcoin/create-mini-app@latest HumanVote`
+   - Based on the official World Next.js 15 template
+
+2. FIXED dependency issues:
+   - `@worldcoin/minikit-js` and `@worldcoin/minikit-react` had `workspace:*`
+     references from the monorepo. Changed to `^1.0.0` for npm resolution.
+   - Fixed broken subpath imports:
+     - `@worldcoin/minikit-js/siwe` → imported `verifySiweMessage` from `@worldcoin/minikit-js`
+     - `@worldcoin/minikit-js/commands` → imported `Tokens, tokenToDecimals, MiniAppWalletAuthSuccessPayload` from `@worldcoin/minikit-js`
+     - `@worldcoin/minikit-js/minikit-provider` → kept as-is (valid export)
+
+3. VERIFIED the app runs locally with `pnpm dev` on http://localhost:3000
+
+4. PUSHED initial commit to GitHub
+
+================================================================================
+CURRENT TECH STACK
+================================================================================
+
+- Framework: Next.js 15 (App Router)
+- Language: TypeScript
+- Styling: Tailwind CSS v4 + @worldcoin/mini-apps-ui-kit-react
+- Auth: next-auth (credentials provider) + MiniKit wallet auth (SIWE)
+- World ID: @worldcoin/idkit for proof-of-human verification
+- Blockchain: viem + World Chain
+- Package Manager: pnpm
+- Debug Tool: Eruda (in-browser console for mobile debugging)
+
+================================================================================
+CURRENT FILE STRUCTURE
+================================================================================
+
+src/
+├── abi/                    # Smart contract ABIs (TestContract.json - demo)
+├── app/
+│   ├── layout.tsx          # Root layout with providers
+│   ├── page.tsx            # Landing page (login button)
+│   ├── globals.css
+│   ├── (protected)/        # Auth-required pages
+│   │   ├── layout.tsx      # Protected layout with bottom nav
+│   │   └── home/
+│   │       └── page.tsx    # Home page (demo features: verify, pay, tx)
+│   └── api/
+│       ├── auth/[...nextauth]/route.ts  # NextAuth handler
+│       ├── initiate-payment/route.ts     # Payment initiation (demo)
+│       ├── rp-signature/route.ts         # RP signature for World ID proofs
+│       └── verify-proof/route.ts         # World ID proof verification
+├── auth/
+│   ├── index.ts            # NextAuth config with wallet credentials
+│   └── wallet/
+│       ├── index.ts        # walletAuth() function
+│       ├── client-helpers.ts  # HMAC nonce hashing
+│       └── server-helpers.ts  # Nonce generation (server action)
+├── components/
+│   ├── AuthButton/         # Wallet login button (auto-auth in World App)
+│   ├── Navigation/         # Bottom tab bar
+│   ├── PageLayout/         # Page layout helper (Header/Main/Footer)
+│   ├── Pay/                # Payment demo component
+│   ├── Transaction/        # Send transaction demo component
+│   ├── UserInfo/           # User profile display
+│   ├── Verify/             # World ID verification component
+│   └── ViewPermissions/    # Permissions display
+└── providers/
+    ├── index.tsx           # ClientProviders (MiniKit + Session + Eruda)
+    └── Eruda/              # In-browser debugger (dev only)
+
+================================================================================
+ENVIRONMENT VARIABLES (.env.local) — DO NOT COMMIT
+================================================================================
+
+AUTH_SECRET="<generated-secret>"           # NextAuth secret
+HMAC_SECRET_KEY='some-secret'              # For nonce signing (generate with: openssl rand -base64 32)
+AUTH_URL='http://localhost:3000'            # Change to ngrok/production URL
+NEXT_PUBLIC_APP_ID='app_staging_1234567890' # Replace with real app_id from developer.world.org
+
+# These are NEEDED but not yet added:
+# RP_ID='rp_xxxxx'                         # From developer.world.org
+# RP_SIGNING_KEY='your_hex_key'            # From developer.world.org (KEEP SECRET)
+
+================================================================================
+PLAN - WHAT TO BUILD NEXT
+================================================================================
+
+PHASE 1: DEVELOPER PORTAL SETUP
+--------------------------------
+- Go to https://developer.world.org
+- Create a "HumanVote" app
+- Get: app_id, rp_id, signing_key
+- Update .env.local with real credentials
+- For testing: use staging environment + https://simulator.worldcoin.org/
+
+PHASE 2: DATABASE SETUP
+------------------------
+- Install: pnpm add prisma @prisma/client
+- Run: pnpm dlx prisma init --datasource-provider sqlite
+- Create schema with these models:
+
+  Competition:
+    - id, title, description, imageUrl
+    - creatorAddress (wallet address of creator)
+    - createdAt, endsAt
+    - relations: entries[], votes[]
+
+  Entry:
+    - id, title, description
+    - competitionId → Competition
+    - createdAt
+    - relations: votes[]
+
+  Vote:
+    - id, nullifier (World ID nullifier - prevents double voting)
+    - entryId → Entry
+    - competitionId → Competition
+    - createdAt
+    - UNIQUE constraint on (nullifier, competitionId) — one vote per human per competition
+
+- Run: pnpm dlx prisma db push
+- Create: src/lib/prisma.ts (singleton client)
+
+PHASE 3: API ROUTES
+--------------------
+Build these endpoints:
+
+  POST /api/competitions         → Create a competition
+  GET  /api/competitions         → List all competitions
+  GET  /api/competitions/[id]    → Get competition with entries + vote counts
+  POST /api/competitions/[id]/entries → Add an entry to a competition
+  POST /api/vote                 → Submit a vote (verify World ID proof + store nullifier)
+  
+  The /api/vote route is the CRITICAL one:
+    1. Receive IDKit proof response from client
+    2. Forward to POST https://developer.world.org/api/v4/verify/{rp_id}
+    3. Check nullifier not already used for this competition
+    4. Store vote + nullifier in DB
+
+  Already exist (from template):
+  POST /api/rp-signature         → Generate RP signature (already works)
+  POST /api/verify-proof         → Verify World ID proof (needs update for v4 API)
+
+PHASE 4: FRONTEND PAGES
+-------------------------
+  /                              → Landing (login) — already exists
+  /home                          → Replace demo with competition list
+  /competitions/new              → Create competition form
+  /competitions/[id]             → View competition: entries, vote counts, vote button
+  /competitions/[id]/entries/new → Add entry form
+
+PHASE 5: WORLD ID VOTING FLOW
+-------------------------------
+When a user clicks "Vote" on an entry:
+  1. Client fetches RP signature from /api/rp-signature with action: `vote-{competitionId}`
+  2. Client creates IDKit request with the RP context
+  3. User proves humanity in World App
+  4. Client receives proof, sends to /api/vote with {proof, entryId, competitionId}
+  5. Backend verifies proof with World API, checks nullifier uniqueness, stores vote
+  
+  Key: Each competition uses action `vote-{competitionId}` so World ID enforces
+  one vote per human per competition (different competitions = different nullifiers)
+
+PHASE 6: UI POLISH
+-------------------
+  - Use @worldcoin/mini-apps-ui-kit-react components for World App native feel
+  - Competition cards, entry lists, vote buttons with LiveFeedback
+  - Leaderboard/results view
+  - Mobile-first design (required for mini apps)
+
+PHASE 7: DEPLOY & REGISTER
+----------------------------
+  - Deploy to Vercel (connect GitHub repo)
+  - Set environment variables in Vercel dashboard
+  - Update AUTH_URL to production URL
+  - Register mini app in World Developer Portal
+  - Test with World App on mobile
+
+================================================================================
+COMMANDS REFERENCE
+================================================================================
+
+  pnpm dev             # Start dev server
+  pnpm build           # Production build
+  pnpm dlx prisma studio  # Visual DB browser (after Phase 2)
+  ngrok http 3000      # Tunnel for mobile testing
+
+================================================================================
+DOCS REFERENCE
+================================================================================
+
+  World Mini Apps:     https://docs.world.org/mini-apps
+  MiniKit SDK:         https://docs.world.org/mini-apps/quick-start/installing
+  World ID Overview:   https://docs.world.org/world-id/overview
+  IDKit Integration:   https://docs.world.org/world-id/idkit/integrate
+  Developer Portal:    https://developer.world.org
+  WID Simulator:       https://simulator.worldcoin.org/
+  Mini Apps UI Kit:    https://github.com/worldcoin/mini-apps-ui-kit
+  MiniKit-JS Source:   https://github.com/worldcoin/minikit-js
+
+================================================================================

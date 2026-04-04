@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Competition {
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  imageUrl       String?
+  creatorAddress String   // wallet address of the person who created it
+  createdAt      DateTime @default(now())
+  endsAt         DateTime
+
+  entries Entry[]
+  votes   Vote[]
+}
+
+model Entry {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  competitionId String
+  createdAt     DateTime @default(now())
+
+  competition Competition @relation(fields: [competitionId], references: [id])
+  votes       Vote[]
+}
+
+model Vote {
+  id            String   @id @default(cuid())
+  nullifier     String   // World ID nullifier hash — unique per human per action
+  entryId       String
+  competitionId String
+  createdAt     DateTime @default(now())
+
+  entry       Entry       @relation(fields: [entryId], references: [id])
+  competition Competition @relation(fields: [competitionId], references: [id])
+
+  // One vote per human per competition (World ID nullifier is unique per action)
+  @@unique([nullifier, competitionId])
+}
