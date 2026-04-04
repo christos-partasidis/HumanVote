@@ -17,7 +17,7 @@ export async function GET() {
   } catch (error: unknown) {
     console.error("GET /api/competitions error:", error);
     return NextResponse.json(
-      { error: String(error) },
+      { error: String(error), tursoUrl: process.env.TURSO_DATABASE_URL?.substring(0, 30) },
       { status: 500 }
     );
   }
