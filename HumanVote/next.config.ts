@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: ['*.trycloudflare.com', '*.ngrok-free.dev'], // Add your dev origin here
   reactStrictMode: false,
-  serverExternalPackages: ['@libsql/client', 'libsql', '@prisma/adapter-libsql'],
 };
 
 export default nextConfig;
