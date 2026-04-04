@@ -4,14 +4,22 @@ import { auth } from "@/auth";
 
 // GET /api/competitions — List all competitions
 export async function GET() {
-  const competitions = await prisma.competition.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: { select: { entries: true, votes: true } },
-    },
-  });
+  try {
+    const competitions = await prisma.competition.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { entries: true, votes: true } },
+      },
+    });
 
-  return NextResponse.json(competitions);
+    return NextResponse.json(competitions);
+  } catch (error: unknown) {
+    console.error("GET /api/competitions error:", error);
+    return NextResponse.json(
+      { error: String(error) },
+      { status: 500 }
+    );
+  }
 }
 
 // POST /api/competitions — Create a new competition
