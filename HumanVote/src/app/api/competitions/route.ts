@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 // GET /api/competitions — List all competitions
 export async function GET() {
   try {
-    console.log("TURSO_DATABASE_URL:", process.env.TURSO_DATABASE_URL);
     const competitions = await prisma.competition.findMany({
       orderBy: { createdAt: "desc" },
       include: {
@@ -17,7 +16,7 @@ export async function GET() {
   } catch (error: unknown) {
     console.error("GET /api/competitions error:", error);
     return NextResponse.json(
-      { error: String(error), tursoUrl: process.env.TURSO_DATABASE_URL?.substring(0, 30) },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
