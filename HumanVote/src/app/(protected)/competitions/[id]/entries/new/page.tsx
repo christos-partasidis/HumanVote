@@ -2,6 +2,7 @@
 
 import { Page } from '@/components/PageLayout';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { NavArrowLeft } from 'iconoir-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -40,7 +41,14 @@ export default function NewEntry() {
   return (
     <>
       <Page.Header className="p-0">
-        <TopBar title="Add Entry" />
+        <TopBar
+          title="Add Entry"
+          startAdornment={
+            <button onClick={() => router.back()}>
+              <NavArrowLeft />
+            </button>
+          }
+        />
       </Page.Header>
       <Page.Main className="flex flex-col gap-4 mb-16">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

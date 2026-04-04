@@ -2,8 +2,9 @@
 
 import { Page } from '@/components/PageLayout';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { NavArrowLeft } from 'iconoir-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 interface Entry {
@@ -25,6 +26,7 @@ interface Competition {
 
 export default function CompetitionDetail() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -80,7 +82,14 @@ export default function CompetitionDetail() {
   return (
     <>
       <Page.Header className="p-0">
-        <TopBar title={competition.title} />
+        <TopBar
+          title={competition.title}
+          startAdornment={
+            <button onClick={() => router.back()}>
+              <NavArrowLeft />
+            </button>
+          }
+        />
       </Page.Header>
       <Page.Main className="flex flex-col gap-4 mb-16">
         <div>
