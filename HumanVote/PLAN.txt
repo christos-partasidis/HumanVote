@@ -35,6 +35,49 @@ WHAT WE COMPLETED (Session 1)
 4. PUSHED initial commit to GitHub
 
 ================================================================================
+WHAT WE COMPLETED (Session 2)
+================================================================================
+
+PHASE 2: DATABASE SETUP ✅
+  - Installed prisma + @prisma/client + @prisma/adapter-better-sqlite3
+  - Created Prisma schema with Competition, Entry, Vote models
+  - Vote uniqueness: @@unique([nullifier, competitionId]) — one vote per human per competition
+  - Created Prisma singleton client at src/lib/prisma.ts (using better-sqlite3 adapter for Prisma v7)
+  - SQLite database at prisma/dev.db
+
+PHASE 3: API ROUTES ✅
+  - POST/GET /api/competitions — create and list competitions
+  - GET /api/competitions/[id] — get competition with entries + vote counts
+  - POST /api/competitions/[id]/entries — add entry to competition
+  - POST /api/vote — verify World ID proof with World API + store vote with nullifier uniqueness
+
+PHASE 4: FRONTEND PAGES ✅
+  - /home — competition list (replaced demo components)
+  - /competitions/new — create competition form
+  - /competitions/[id] — view entries, vote counts, vote button
+  - /competitions/[id]/entries/new — add entry form
+  - Navigation updated: Home + New tabs with proper routing
+
+PHASE 5: WORLD ID VOTING FLOW ✅ (integrated into Phase 4)
+  - VoteButton component on competition detail page
+  - Flow: get RP signature → MiniKit.commandsAsync.verify → POST /api/vote
+  - Action per competition: `vote-{competitionId}` (unique nullifier per competition)
+
+PHASE 6: UI POLISH ✅
+  - Branded landing page with title + description
+  - Back navigation buttons (NavArrowLeft) on all sub-pages
+  - Fixed body hydration warning (suppressHydrationWarning for browser extensions)
+
+FIXES APPLIED:
+  - Updated all deprecated MiniKit API calls to use commandsAsync:
+    - MiniKit.walletAuth → MiniKit.commandsAsync.walletAuth
+    - MiniKit.pay → MiniKit.commandsAsync.pay
+    - MiniKit.sendTransaction → MiniKit.commandsAsync.sendTransaction (new Transaction type)
+    - MiniKit.getPermissions → MiniKit.commandsAsync.getPermissions
+  - Prisma v7 requires adapter — using @prisma/adapter-better-sqlite3
+  - Installed missing eslint-plugin-react and eslint-plugin-react-hooks
+
+================================================================================
 CURRENT TECH STACK
 ================================================================================
 
@@ -42,7 +85,8 @@ CURRENT TECH STACK
 - Language: TypeScript
 - Styling: Tailwind CSS v4 + @worldcoin/mini-apps-ui-kit-react
 - Auth: next-auth (credentials provider) + MiniKit wallet auth (SIWE)
-- World ID: @worldcoin/idkit for proof-of-human verification
+- World ID: @worldcoin/idkit + MiniKit commandsAsync.verify
+- Database: Prisma v7 + SQLite (better-sqlite3 adapter)
 - Blockchain: viem + World Chain
 - Package Manager: pnpm
 - Debug Tool: Eruda (in-browser console for mobile debugging)
@@ -51,39 +95,61 @@ CURRENT TECH STACK
 CURRENT FILE STRUCTURE
 ================================================================================
 
+prisma/
+├── schema.prisma              # DB models: Competition, Entry, Vote
+├── dev.db                     # SQLite database (gitignored)
 src/
-├── abi/                    # Smart contract ABIs (TestContract.json - demo)
+├── abi/                       # Smart contract ABIs (TestContract.json - demo)
+├── generated/prisma/          # Prisma generated client (gitignored)
+├── lib/
+│   └── prisma.ts              # Prisma singleton (better-sqlite3 adapter)
 ├── app/
-│   ├── layout.tsx          # Root layout with providers
-│   ├── page.tsx            # Landing page (login button)
+│   ├── layout.tsx             # Root layout with providers
+│   ├── page.tsx               # Landing page (branded + login button)
 │   ├── globals.css
-│   ├── (protected)/        # Auth-required pages
-│   │   ├── layout.tsx      # Protected layout with bottom nav
-│   │   └── home/
-│   │       └── page.tsx    # Home page (demo features: verify, pay, tx)
+│   ├── (protected)/           # Auth-required pages
+│   │   ├── layout.tsx         # Protected layout with bottom nav
+│   │   ├── home/
+│   │   │   └── page.tsx       # Home — competition list
+│   │   └── competitions/
+│   │       ├── new/
+│   │       │   └── page.tsx   # Create competition form
+│   │       └── [id]/
+│   │           ├── page.tsx   # Competition detail + vote buttons
+│   │           └── entries/
+│   │               └── new/
+│   │                   └── page.tsx  # Add entry form
 │   └── api/
 │       ├── auth/[...nextauth]/route.ts  # NextAuth handler
-│       ├── initiate-payment/route.ts     # Payment initiation (demo)
-│       ├── rp-signature/route.ts         # RP signature for World ID proofs
-│       └── verify-proof/route.ts         # World ID proof verification
+│       ├── competitions/
+│       │   ├── route.ts                 # POST (create) + GET (list)
+│       │   └── [id]/
+│       │       ├── route.ts             # GET (detail with entries + votes)
+│       │       └── entries/
+│       │           └── route.ts         # POST (add entry)
+│       ├── vote/route.ts                # POST (verify proof + store vote)
+│       ├── rp-signature/route.ts        # POST (RP signature for World ID)
+│       ├── verify-proof/route.ts        # POST (generic proof verification)
+│       └── initiate-payment/route.ts    # POST (demo payment)
 ├── auth/
-│   ├── index.ts            # NextAuth config with wallet credentials
+│   ├── index.ts               # NextAuth config with wallet credentials
 │   └── wallet/
-│       ├── index.ts        # walletAuth() function
+│       ├── index.ts           # walletAuth() — uses commandsAsync
 │       ├── client-helpers.ts  # HMAC nonce hashing
 │       └── server-helpers.ts  # Nonce generation (server action)
 ├── components/
-│   ├── AuthButton/         # Wallet login button (auto-auth in World App)
-│   ├── Navigation/         # Bottom tab bar
-│   ├── PageLayout/         # Page layout helper (Header/Main/Footer)
-│   ├── Pay/                # Payment demo component
-│   ├── Transaction/        # Send transaction demo component
-│   ├── UserInfo/           # User profile display
-│   ├── Verify/             # World ID verification component
-│   └── ViewPermissions/    # Permissions display
+│   ├── AuthButton/            # Wallet login button (auto-auth in World App)
+│   ├── CompetitionList/       # Fetches + displays competition cards
+│   ├── Navigation/            # Bottom tab bar (Home + New)
+│   ├── PageLayout/            # Page layout helper (Header/Main/Footer)
+│   ├── Pay/                   # Payment demo (updated API)
+│   ├── Transaction/           # Transaction demo (updated API)
+│   ├── UserInfo/              # User profile display
+│   ├── Verify/                # World ID verification (IDKit)
+│   └── ViewPermissions/       # Permissions display (updated API)
 └── providers/
-    ├── index.tsx           # ClientProviders (MiniKit + Session + Eruda)
-    └── Eruda/              # In-browser debugger (dev only)
+    ├── index.tsx              # ClientProviders (MiniKit + Session + Eruda)
+    └── Eruda/                 # In-browser debugger (dev only)
 
 ================================================================================
 ENVIRONMENT VARIABLES (.env.local) — DO NOT COMMIT
@@ -99,99 +165,41 @@ NEXT_PUBLIC_APP_ID='app_staging_1234567890' # Replace with real app_id from deve
 # RP_SIGNING_KEY='your_hex_key'            # From developer.world.org (KEEP SECRET)
 
 ================================================================================
-PLAN - WHAT TO BUILD NEXT
+PLAN - REMAINING STEPS
 ================================================================================
 
-PHASE 1: DEVELOPER PORTAL SETUP
---------------------------------
+PHASE 1: DEVELOPER PORTAL SETUP ← CURRENT
+------------------------------------------
 - Go to https://developer.world.org
-- Create a "HumanVote" app
+- Create a "HumanVote" app (or use existing staging app)
 - Get: app_id, rp_id, signing_key
-- Update .env.local with real credentials
-- For testing: use staging environment + https://simulator.worldcoin.org/
+- Update .env.local with real credentials:
+    NEXT_PUBLIC_APP_ID='app_xxxxx'
+    RP_ID='rp_xxxxx'
+    SIGNING_KEY='your_hex_signing_key'
+- For testing: use staging environment + World App Simulator
 
-PHASE 2: DATABASE SETUP
-------------------------
-- Install: pnpm add prisma @prisma/client
-- Run: pnpm dlx prisma init --datasource-provider sqlite
-- Create schema with these models:
+PHASE 7: LOCAL TESTING
+-----------------------
+- Run: pnpm dev
+- Test create/view competitions at http://localhost:3000
+- Test adding entries to competitions
+- For World ID voting: need ngrok tunnel + World App or Simulator
+  - Run: ngrok http 3000
+  - Update AUTH_URL in .env.local to ngrok URL
+  - Open ngrok URL in World App or browser with Simulator
 
-  Competition:
-    - id, title, description, imageUrl
-    - creatorAddress (wallet address of creator)
-    - createdAt, endsAt
-    - relations: entries[], votes[]
-
-  Entry:
-    - id, title, description
-    - competitionId → Competition
-    - createdAt
-    - relations: votes[]
-
-  Vote:
-    - id, nullifier (World ID nullifier - prevents double voting)
-    - entryId → Entry
-    - competitionId → Competition
-    - createdAt
-    - UNIQUE constraint on (nullifier, competitionId) — one vote per human per competition
-
-- Run: pnpm dlx prisma db push
-- Create: src/lib/prisma.ts (singleton client)
-
-PHASE 3: API ROUTES
---------------------
-Build these endpoints:
-
-  POST /api/competitions         → Create a competition
-  GET  /api/competitions         → List all competitions
-  GET  /api/competitions/[id]    → Get competition with entries + vote counts
-  POST /api/competitions/[id]/entries → Add an entry to a competition
-  POST /api/vote                 → Submit a vote (verify World ID proof + store nullifier)
-  
-  The /api/vote route is the CRITICAL one:
-    1. Receive IDKit proof response from client
-    2. Forward to POST https://developer.world.org/api/v4/verify/{rp_id}
-    3. Check nullifier not already used for this competition
-    4. Store vote + nullifier in DB
-
-  Already exist (from template):
-  POST /api/rp-signature         → Generate RP signature (already works)
-  POST /api/verify-proof         → Verify World ID proof (needs update for v4 API)
-
-PHASE 4: FRONTEND PAGES
--------------------------
-  /                              → Landing (login) — already exists
-  /home                          → Replace demo with competition list
-  /competitions/new              → Create competition form
-  /competitions/[id]             → View competition: entries, vote counts, vote button
-  /competitions/[id]/entries/new → Add entry form
-
-PHASE 5: WORLD ID VOTING FLOW
--------------------------------
-When a user clicks "Vote" on an entry:
-  1. Client fetches RP signature from /api/rp-signature with action: `vote-{competitionId}`
-  2. Client creates IDKit request with the RP context
-  3. User proves humanity in World App
-  4. Client receives proof, sends to /api/vote with {proof, entryId, competitionId}
-  5. Backend verifies proof with World API, checks nullifier uniqueness, stores vote
-  
-  Key: Each competition uses action `vote-{competitionId}` so World ID enforces
-  one vote per human per competition (different competitions = different nullifiers)
-
-PHASE 6: UI POLISH
--------------------
-  - Use @worldcoin/mini-apps-ui-kit-react components for World App native feel
-  - Competition cards, entry lists, vote buttons with LiveFeedback
-  - Leaderboard/results view
-  - Mobile-first design (required for mini apps)
-
-PHASE 7: DEPLOY & REGISTER
+PHASE 8: DEPLOY & REGISTER
 ----------------------------
-  - Deploy to Vercel (connect GitHub repo)
-  - Set environment variables in Vercel dashboard
-  - Update AUTH_URL to production URL
-  - Register mini app in World Developer Portal
-  - Test with World App on mobile
+- Deploy to Vercel (connect GitHub repo)
+- Set environment variables in Vercel dashboard:
+    AUTH_SECRET, HMAC_SECRET_KEY, AUTH_URL (production URL),
+    NEXT_PUBLIC_APP_ID, RP_ID, SIGNING_KEY
+- Update AUTH_URL to production URL
+- Register mini app in World Developer Portal
+- Test end-to-end with World App on mobile
+
+COMPLETED PHASES: 2 ✅, 3 ✅, 4 ✅, 5 ✅, 6 ✅
 
 ================================================================================
 COMMANDS REFERENCE

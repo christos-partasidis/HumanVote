@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashSignal } from "@worldcoin/idkit-core/hashing";
 
 interface IVotePayload {
   proof: Record<string, unknown>;
   entryId: string;
   competitionId: string;
+  nonce: string;
 }
 
 /**
@@ -21,11 +23,11 @@ interface IVotePayload {
  * gives a different nullifier per competition, allowing one vote per human per competition.
  */
 export async function POST(req: NextRequest) {
-  const { proof, entryId, competitionId } = (await req.json()) as IVotePayload;
+  const { proof, entryId, competitionId, nonce } = (await req.json()) as IVotePayload;
 
-  if (!proof || !entryId || !competitionId) {
+  if (!proof || !entryId || !competitionId || !nonce) {
     return NextResponse.json(
-      { error: "proof, entryId, and competitionId are required" },
+      { error: "proof, entryId, competitionId, and nonce are required" },
       { status: 400 }
     );
   }
@@ -61,22 +63,43 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 3. Verify the World ID proof with the World API
-  const app_id = process.env.NEXT_PUBLIC_APP_ID as `app_${string}`;
-  const action = `vote-${competitionId}`;
+  // 3. Verify the World ID proof with the World API (v4)
+  const rp_id = process.env.RP_ID;
+  const action = 'vote';
+
+  // Construct v3 legacy format payload for v4 verify endpoint
+  const signalHash = hashSignal(entryId);
+  const verifyBody = {
+    protocol_version: "3.0",
+    nonce,
+    action,
+    environment: "production",
+    responses: [
+      {
+        identifier: proof.verification_level || "orb",
+        proof: proof.proof,
+        merkle_root: proof.merkle_root,
+        nullifier: proof.nullifier_hash,
+        signal_hash: signalHash,
+      },
+    ],
+  };
+
+  console.log('Verify request body:', JSON.stringify(verifyBody, null, 2));
 
   const verifyRes = await fetch(
-    `https://developer.worldcoin.org/api/v2/verify/${app_id}`,
+    `https://developer.worldcoin.org/api/v4/verify/${rp_id}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...proof, action }),
+      body: JSON.stringify(verifyBody),
     }
   );
 
   const verifyData = await verifyRes.json();
+  console.log('Verify response:', verifyRes.status, JSON.stringify(verifyData, null, 2));
 
-  if (!verifyData.success) {
+  if (!verifyRes.ok) {
     return NextResponse.json(
       { error: "World ID verification failed", details: verifyData },
       { status: 400 }

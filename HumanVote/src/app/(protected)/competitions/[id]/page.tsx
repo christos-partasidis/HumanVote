@@ -182,7 +182,7 @@ function VoteButton({
       const rpRes = await fetch('/api/rp-signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: `vote-${competitionId}` }),
+        body: JSON.stringify({ action: 'vote' }),
       });
 
       if (!rpRes.ok) throw new Error('Failed to get RP signature');
@@ -196,7 +196,7 @@ function VoteButton({
       }
 
       const verifyPayload = {
-        action: `vote-${competitionId}`,
+        action: 'vote',
         verification_level: VerificationLevel.Orb,
         signal: entryId,
         ...(rpData.rp_id
@@ -226,6 +226,7 @@ function VoteButton({
           proof: result.finalPayload,
           entryId,
           competitionId,
+          nonce: rpData.nonce,
         }),
       });
 

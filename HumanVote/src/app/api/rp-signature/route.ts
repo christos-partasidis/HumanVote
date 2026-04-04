@@ -1,10 +1,10 @@
-import { signRequest } from '@worldcoin/idkit';
+import { signRequest } from '@worldcoin/idkit-core/signing';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const SIGNING_KEY = process.env.RP_SIGNING_KEY;
-const RP_ID = process.env.RP_ID ?? 'rp_e87d44dbb7b76d91';
+const SIGNING_KEY = process.env.RP_SIGNING_KEY!;
+const RP_ID = process.env.RP_ID;
 
 export async function POST(req: Request) {
   if (!SIGNING_KEY) {
@@ -15,13 +15,16 @@ export async function POST(req: Request) {
   }
 
   const { action } = await req.json();
-  const sig = signRequest(action, SIGNING_KEY);
+  const { sig, nonce, createdAt, expiresAt } = signRequest({
+    signingKeyHex: SIGNING_KEY,
+    action,
+  });
 
   return NextResponse.json({
     rp_id: RP_ID,
-    sig: sig.sig,
-    nonce: sig.nonce,
-    created_at: Number(sig.createdAt),
-    expires_at: Number(sig.expiresAt),
+    sig,
+    nonce,
+    created_at: createdAt,
+    expires_at: expiresAt,
   });
 }

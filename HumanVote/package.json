@@ -16,6 +16,7 @@
     "@prisma/adapter-better-sqlite3": "^7.6.0",
     "@prisma/client": "^7.6.0",
     "@worldcoin/idkit": "4.0.0-dev.4777311",
+    "@worldcoin/idkit-core": "^4.1.0",
     "@worldcoin/mini-apps-ui-kit-react": "^1.0.2",
     "@worldcoin/minikit-js": "^1.0.0",
     "@worldcoin/minikit-react": "^1.0.0",

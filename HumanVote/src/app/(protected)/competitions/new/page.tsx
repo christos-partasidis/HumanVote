@@ -10,7 +10,8 @@ export default function NewCompetition() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [endsAt, setEndsAt] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('23:59');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,7 +24,7 @@ export default function NewCompetition() {
       const res = await fetch('/api/competitions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description, endsAt }),
+        body: JSON.stringify({ title, description, endsAt: `${endDate}T${endTime}` }),
       });
 
       if (!res.ok) {
@@ -83,12 +84,27 @@ export default function NewCompetition() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ends At
+              End Date (YYYY-MM-DD)
             </label>
             <input
-              type="datetime-local"
-              value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
+              type="text"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              placeholder="2026-04-10"
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              End Time (HH:MM)
+            </label>
+            <input
+              type="text"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              placeholder="23:59"
               required
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
             />
