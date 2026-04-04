@@ -8,7 +8,8 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
+  // CLI uses file URL for generate; runtime uses libsql adapter (see src/lib/prisma.ts)
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: "file:./dev.db",
   },
 });
