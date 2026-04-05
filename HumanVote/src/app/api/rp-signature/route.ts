@@ -15,9 +15,10 @@ export async function POST(req: Request) {
 
   try {
     const { action } = await req.json();
+    const cleanKey = signingKey.replace(/^0x/i, '').replace(/[^0-9a-fA-F]/g, '');
     const { signRequest } = await import('@worldcoin/idkit-core/signing');
     const { sig, nonce, createdAt, expiresAt } = signRequest({
-      signingKeyHex: signingKey.replace(/^0x/, ''),
+      signingKeyHex: cleanKey,
       action,
     });
 
