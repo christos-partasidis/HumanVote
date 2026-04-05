@@ -6,27 +6,35 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  try {
+    const { id } = await params;
 
-  const competition = await prisma.competition.findUnique({
-    where: { id },
-    include: {
-      entries: {
-        include: {
-          _count: { select: { votes: true } },
+    const competition = await prisma.competition.findUnique({
+      where: { id },
+      include: {
+        entries: {
+          include: {
+            _count: { select: { votes: true } },
+          },
+          orderBy: { createdAt: "asc" },
         },
-        orderBy: { createdAt: "asc" },
+        _count: { select: { votes: true } },
       },
-      _count: { select: { votes: true } },
-    },
-  });
+    });
 
-  if (!competition) {
+    if (!competition) {
+      return NextResponse.json(
+        { error: "Competition not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(competition);
+  } catch (error: unknown) {
+    console.error("GET /api/competitions/[id] error:", error);
     return NextResponse.json(
-      { error: "Competition not found" },
-      { status: 404 }
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json(competition);
 }

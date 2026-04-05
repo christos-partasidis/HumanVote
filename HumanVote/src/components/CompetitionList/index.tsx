@@ -31,7 +31,7 @@ export const CompetitionList = () => {
     fetch('/api/competitions')
       .then((res) => res.json())
       .then((data) => {
-        setCompetitions(data);
+        setCompetitions(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));

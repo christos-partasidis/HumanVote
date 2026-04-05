@@ -87,7 +87,7 @@ export default function CompetitionDetail() {
   }
 
   const ended = new Date(competition.endsAt) < new Date();
-  const sorted = [...competition.entries].sort(
+  const sorted = [...(competition.entries || [])].sort(
     (a, b) => b._count.votes - a._count.votes
   );
   const maxVotes = sorted.length > 0 ? Math.max(sorted[0]._count.votes, 1) : 1;

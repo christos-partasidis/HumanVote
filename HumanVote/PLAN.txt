@@ -78,31 +78,107 @@ FIXES APPLIED:
   - Installed missing eslint-plugin-react and eslint-plugin-react-hooks
 
 ================================================================================
+WHAT WE COMPLETED (Session 3)
+================================================================================
+
+CRITICAL FIXES ✅
+  - Fixed session callback bug: token.address → token.walletAddress in src/auth/index.ts
+  - Updated metadata from "Template Mini App" to "HumanVote" in src/app/layout.tsx
+  - Removed debug console.log statements
+
+DATABASE: MIGRATED FROM SQLITE TO TURSO (HOSTED libSQL) ✅
+  - Switched from @prisma/adapter-better-sqlite3 to @prisma/adapter-libsql/web
+  - Added @libsql/client as direct dependency (needed for Vercel)
+  - src/lib/prisma.ts creates explicit @libsql/client/web client instance and
+    passes it to PrismaLibSql adapter (with `as any` cast for type mismatch)
+  - TURSO_DATABASE_URL must use https:// prefix (NOT libsql://)
+  - Removed serverExternalPackages from next.config.ts (not needed with web adapter)
+
+SMART CONTRACT ✅
+  - Wrote contracts/HumanVote.sol (Solidity 0.8.24)
+    - createCompetition(bytes32 competitionId, uint256 endTime)
+    - vote(bytes32 competitionId, bytes32 entryId, bytes32 nullifierHash)
+    - getVoteCount(bytes32 entryId), getCompetitionVoteCount(bytes32 competitionId)
+    - hasNullifierVoted(bytes32 competitionId, bytes32 nullifierHash)
+    - Events: CompetitionCreated, VoteCast
+  - Generated ABI at src/abi/HumanVote.json
+  - Deployed via Remix to World Chain Sepolia (Chain ID 4801)
+    at 0xbf569bCAb95367d4ce8F9311EBC40554e33Db5af
+
+ON-CHAIN INTEGRATION ✅
+  - VoteButton on competition detail page:
+    - Posts vote to DB first, then sends on-chain tx via MiniKit.commandsAsync.sendTransaction()
+    - On-chain is best-effort (DB vote succeeds even if chain tx fails)
+    - Uses keccak256(toHex(cuidString)) from viem to convert CUID IDs to bytes32
+    - Shows "On-chain ✓" or "off-chain only" status badges
+  - Competition creation page also writes on-chain after DB creation
+
+UI POLISH ✅
+  - Landing page: icon, better spacing, "Powered by World Chain" footer
+  - Competition list: timeRemaining() helper, skeleton loading (3 animated placeholders),
+    better cards with icons, active/ended badges with colored borders, touch feedback
+  - Competition detail: rank badges (gold/silver/bronze 🥇🥈🥉), vote progress bars,
+    skeleton loading, time remaining display, on-chain status indicators
+  - Create competition: fixed date/time inputs (text → <input type="date/time">)
+
+VERCEL DEPLOYMENT (IN PROGRESS)
+  - Connected Git repo to Vercel, Root Directory set to "HumanVote"
+  - All env vars configured on Vercel dashboard
+  - BLOCKER: "Invalid URL" error from Prisma/Turso on Vercel
+    - Root cause: PrismaLibSql({url, authToken}) config constructor fails on Vercel
+    - Fix: create @libsql/client/web client explicitly, pass instance to PrismaLibSql
+    - Had type mismatch — fixed with `as any` cast
+    - Build now passes locally ✅
+    - Latest fix pushed as commit ed5f19e — AWAITING VERCEL REDEPLOY
+  - Temp debug endpoint at src/app/api/debug/route.ts (remove after fix confirmed)
+
+GIT COMMITS (Session 3):
+  ed5f19e fix: cast libsql client to bypass PrismaLibSql type mismatch
+  f02d433 debug: add temp env debug endpoint
+  5dc6496 fix: create libsql web client explicitly to fix Vercel 'Invalid URL' error
+  3c6907b fix: add @libsql/client as direct dependency
+  29749b3 debug: verbose error for Vercel diagnosis
+  f925a02 feat: set deployed contract address
+  56ee621 ui: polish competition detail
+  35937d3 ui: polish landing page & competition cards
+  4cf5afa feat: on-chain voting & competition creation via MiniKit
+  7ade5b7 feat: HumanVote smart contract + ABI
+  d6fae6a fix: web Turso adapter for Vercel compatibility
+  9fe304b fix: session callback bug, metadata, debug logging
+
+================================================================================
 CURRENT TECH STACK
 ================================================================================
 
-- Framework: Next.js 15 (App Router)
+- Framework: Next.js 15.5.14 (App Router)
 - Language: TypeScript
 - Styling: Tailwind CSS v4 + @worldcoin/mini-apps-ui-kit-react
-- Auth: next-auth (credentials provider) + MiniKit wallet auth (SIWE)
-- World ID: @worldcoin/idkit + MiniKit commandsAsync.verify
-- Database: Prisma v7 + SQLite (better-sqlite3 adapter)
-- Blockchain: viem + World Chain
+- Auth: next-auth v5 beta (credentials provider) + MiniKit wallet auth (SIWE)
+- World ID: @worldcoin/idkit-core + MiniKit commandsAsync.verify
+- Database: Prisma v7 + Turso (hosted libSQL) via @prisma/adapter-libsql/web + @libsql/client/web
+- Blockchain: viem + World Chain Sepolia (Chain ID 4801)
+- Smart Contract: HumanVote.sol at 0xbf569bCAb95367d4ce8F9311EBC40554e33Db5af
 - Package Manager: pnpm
+- Hosting: Vercel (Git-connected, Root Directory: HumanVote)
 - Debug Tool: Eruda (in-browser console for mobile debugging)
 
 ================================================================================
 CURRENT FILE STRUCTURE
 ================================================================================
 
+contracts/
+├── HumanVote.sol              # Smart contract (deployed on World Chain Sepolia)
+
 prisma/
 ├── schema.prisma              # DB models: Competition, Entry, Vote
-├── dev.db                     # SQLite database (gitignored)
+
 src/
-├── abi/                       # Smart contract ABIs (TestContract.json - demo)
+├── abi/
+│   ├── HumanVote.json         # Deployed contract ABI
+│   └── TestContract.json      # Demo ABI (from template)
 ├── generated/prisma/          # Prisma generated client (gitignored)
 ├── lib/
-│   └── prisma.ts              # Prisma singleton (better-sqlite3 adapter)
+│   └── prisma.ts              # Prisma singleton (Turso web adapter + explicit libsql client)
 ├── app/
 │   ├── layout.tsx             # Root layout with providers
 │   ├── page.tsx               # Landing page (branded + login button)
@@ -113,9 +189,9 @@ src/
 │   │   │   └── page.tsx       # Home — competition list
 │   │   └── competitions/
 │   │       ├── new/
-│   │       │   └── page.tsx   # Create competition form
+│   │       │   └── page.tsx   # Create competition form + on-chain creation
 │   │       └── [id]/
-│   │           ├── page.tsx   # Competition detail + vote buttons
+│   │           ├── page.tsx   # Competition detail + vote buttons + on-chain voting
 │   │           └── entries/
 │   │               └── new/
 │   │                   └── page.tsx  # Add entry form
@@ -127,6 +203,7 @@ src/
 │       │       ├── route.ts             # GET (detail with entries + votes)
 │       │       └── entries/
 │       │           └── route.ts         # POST (add entry)
+│       ├── debug/route.ts               # TEMP: env var debug endpoint (remove after Vercel fix)
 │       ├── vote/route.ts                # POST (verify proof + store vote)
 │       ├── rp-signature/route.ts        # POST (RP signature for World ID)
 │       ├── verify-proof/route.ts        # POST (generic proof verification)
@@ -139,7 +216,7 @@ src/
 │       └── server-helpers.ts  # Nonce generation (server action)
 ├── components/
 │   ├── AuthButton/            # Wallet login button (auto-auth in World App)
-│   ├── CompetitionList/       # Fetches + displays competition cards
+│   ├── CompetitionList/       # Competition cards with skeleton loading + time remaining
 │   ├── Navigation/            # Bottom tab bar (Home + New)
 │   ├── PageLayout/            # Page layout helper (Header/Main/Footer)
 │   ├── Pay/                   # Payment demo (updated API)
@@ -155,51 +232,108 @@ src/
 ENVIRONMENT VARIABLES (.env.local) — DO NOT COMMIT
 ================================================================================
 
-AUTH_SECRET="<generated-secret>"           # NextAuth secret
-HMAC_SECRET_KEY='some-secret'              # For nonce signing (generate with: openssl rand -base64 32)
-AUTH_URL='http://localhost:3000'            # Change to ngrok/production URL
-NEXT_PUBLIC_APP_ID='app_staging_1234567890' # Replace with real app_id from developer.world.org
-
-# These are NEEDED but not yet added:
-# RP_ID='rp_xxxxx'                         # From developer.world.org
-# RP_SIGNING_KEY='your_hex_key'            # From developer.world.org (KEEP SECRET)
+AUTH_SECRET="<generated-secret>"                    # NextAuth secret
+HMAC_SECRET_KEY='<generated-secret>'                # For nonce signing
+AUTH_URL='https://humanvote.vercel.app'             # Production URL (or cloudflare tunnel for local)
+NEXT_PUBLIC_APP_ID='app_0d4495a3b5358f6683b036da7894c93d'  # World Dev Portal app ID
+APP_ID='app_0d4495a3b5358f6683b036da7894c93d'              # Same, for server-side
+DEV_PORTAL_API_KEY='<your-api-key>'                 # World Dev Portal API key
+TURSO_DATABASE_URL='https://your-db.turso.io'       # MUST use https:// (NOT libsql://)
+TURSO_AUTH_TOKEN='<turso-auth-token>'                # Turso database auth token
 
 ================================================================================
 PLAN - REMAINING STEPS
 ================================================================================
 
-PHASE 1: DEVELOPER PORTAL SETUP ← CURRENT
-------------------------------------------
-- Go to https://developer.world.org
-- Create a "HumanVote" app (or use existing staging app)
-- Get: app_id, rp_id, signing_key
-- Update .env.local with real credentials:
-    NEXT_PUBLIC_APP_ID='app_xxxxx'
-    RP_ID='rp_xxxxx'
-    SIGNING_KEY='your_hex_signing_key'
-- For testing: use staging environment + World App Simulator
+STEP 1: VERIFY VERCEL DEPLOYMENT ← CURRENT BLOCKER
+----------------------------------------------------
+- Latest fix (commit ed5f19e) should resolve "Invalid URL" error
+- Check: curl https://humanvote.vercel.app/api/competitions
+- If build failed again, check Vercel dashboard → Deployments for error logs
+- Once working: remove src/app/api/debug/route.ts (temp debug endpoint)
+- Also clean up verbose error in src/app/api/competitions/route.ts
 
-PHASE 7: LOCAL TESTING
------------------------
-- Run: pnpm dev
-- Test create/view competitions at http://localhost:3000
-- Test adding entries to competitions
-- For World ID voting: need ngrok tunnel + World App or Simulator
-  - Run: ngrok http 3000
-  - Update AUTH_URL in .env.local to ngrok URL
-  - Open ngrok URL in World App or browser with Simulator
+STEP 2: WORLD DEV PORTAL — CONTRACT ENTRYPOINTS
+-------------------------------------------------
+- Go to developer.world.org → HumanVote app → Configuration → Advanced
+- Add contract entrypoint:
+    Address: 0xbf569bCAb95367d4ce8F9311EBC40554e33Db5af
+    Chain: World Chain Sepolia (4801)
+- This is REQUIRED for MiniKit.sendTransaction() to work in production
 
-PHASE 8: DEPLOY & REGISTER
-----------------------------
-- Deploy to Vercel (connect GitHub repo)
-- Set environment variables in Vercel dashboard:
-    AUTH_SECRET, HMAC_SECRET_KEY, AUTH_URL (production URL),
-    NEXT_PUBLIC_APP_ID, RP_ID, SIGNING_KEY
-- Update AUTH_URL to production URL
-- Register mini app in World Developer Portal
-- Test end-to-end with World App on mobile
+STEP 3: END-TO-END TESTING IN WORLD APP
+-----------------------------------------
+- Open in World App: https://world.org/mini-app?app_id=app_0d4495a3b5358f6683b036da7894c93d
+- Test flow:
+    1. Login via wallet auth
+    2. Create a competition (should write to DB + on-chain)
+    3. Add entries to the competition
+    4. Vote on an entry (World ID verify → DB vote → on-chain tx)
+    5. Verify vote appears with "On-chain ✓" badge
+
+STEP 4: CLEANUP (IF TIME)
+---------------------------
+- Remove debug endpoint (src/app/api/debug/route.ts)
+- Remove verbose error logging from API routes
+- Remove unused demo components (Pay, Transaction, ViewPermissions)
+- Final commit + push
 
 COMPLETED PHASES: 2 ✅, 3 ✅, 4 ✅, 5 ✅, 6 ✅
+
+================================================================================
+FUTURE ENDEAVORS (Post-Hackathon Roadmap)
+================================================================================
+
+SMART CONTRACT IMPROVEMENTS
+  - Upgrade to upgradeable proxy pattern (UUPS) for future contract changes
+  - Add weighted voting (e.g., stake-based or reputation-based weight)
+  - Add vote delegation — let verified humans delegate their vote to others
+  - Emit richer events for off-chain indexing (subgraph / Ponder)
+  - Deploy to World Chain mainnet (currently on Sepolia testnet)
+
+VOTING FEATURES
+  - Ranked-choice / multi-entry voting (currently single vote per competition)
+  - Time-locked vote reveal (commit-reveal scheme for secret voting)
+  - Quadratic voting support
+  - Vote result attestations (on-chain proof that results are accurate)
+  - Real-time vote count updates via WebSocket or polling
+
+COMPETITION FEATURES
+  - Image/media uploads for entries (use Vercel Blob or IPFS)
+  - Categories and tags for competitions
+  - Competition discovery / search / filtering
+  - Private competitions (invite-only with access codes)
+  - Competition templates (hackathon, music contest, poll, etc.)
+  - Entry submission deadlines separate from voting deadlines
+
+USER EXPERIENCE
+  - User profiles with voting history
+  - Notifications when competitions you entered get votes
+  - Leaderboards across all competitions
+  - Dark mode / theme customization
+  - Animations and transitions (Framer Motion)
+  - PWA support for standalone app experience
+  - Multi-language / i18n support
+
+SECURITY & TRUST
+  - Full on-chain vote verification (currently best-effort)
+  - On-chain result finalization with merkle proofs
+  - Anti-sybil measures beyond World ID (e.g., social graph verification)
+  - Audit trail: public dashboard showing DB ↔ on-chain consistency
+  - Rate limiting and abuse prevention on API routes
+
+INFRASTRUCTURE
+  - Move from Turso to a more robust DB if scale demands (e.g., PlanetScale, Neon)
+  - Add a subgraph or indexer for on-chain event queries
+  - CI/CD pipeline with automated tests
+  - Monitoring and alerting (Sentry, Vercel Analytics)
+  - API rate limiting and caching layer
+
+ECOSYSTEM
+  - SDK / API for third-party apps to embed HumanVote polls
+  - Governance module — let communities run binding votes
+  - Integration with other World App features (payments, profiles)
+  - Open-source the contract and encourage community audits
 
 ================================================================================
 COMMANDS REFERENCE
