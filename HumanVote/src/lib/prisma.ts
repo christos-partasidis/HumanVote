@@ -1,5 +1,4 @@
 import { PrismaClient } from "@/generated/prisma/client";
-import { createClient } from "@libsql/client/web";
 import { PrismaLibSql } from "@prisma/adapter-libsql/web";
 
 const globalForPrisma = globalThis as unknown as {
@@ -9,18 +8,15 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient(): PrismaClient {
   const url = process.env.TURSO_DATABASE_URL?.trim();
-  console.log("[prisma.ts] createPrismaClient called, TURSO_DATABASE_URL =", url ? url.substring(0, 30) + "..." : "UNDEFINED");
   if (!url) {
     throw new Error("TURSO_DATABASE_URL is not set");
   }
 
-  const libsqlClient = createClient({
+  // Prisma v7: PrismaLibSql takes { url, authToken } directly
+  const adapter = new PrismaLibSql({
     url,
     authToken: process.env.TURSO_AUTH_TOKEN?.trim(),
   });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const adapter = new PrismaLibSql(libsqlClient as any);
 
   globalForPrisma.prismaUrl = url;
   return new PrismaClient({ adapter });
@@ -28,7 +24,6 @@ function createPrismaClient(): PrismaClient {
 
 function getPrisma(): PrismaClient {
   const currentUrl = process.env.TURSO_DATABASE_URL?.trim();
-  console.log("[prisma.ts] getPrisma called, hasCached =", !!globalForPrisma.prisma, "cachedUrl =", globalForPrisma.prismaUrl?.substring(0, 20), "currentUrl =", currentUrl?.substring(0, 20));
   // Recreate if no client or if it was created with a different/missing URL
   if (!globalForPrisma.prisma || globalForPrisma.prismaUrl !== currentUrl) {
     globalForPrisma.prisma = createPrismaClient();
