@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
-  const signingKey = process.env.RP_SIGNING_KEY;
-  const rpId = process.env.RP_ID;
+  const signingKey = process.env.RP_SIGNING_KEY?.trim();
+  const rpId = process.env.RP_ID?.trim();
 
   if (!signingKey) {
     return NextResponse.json(
