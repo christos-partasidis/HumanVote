@@ -1,30 +1,38 @@
-import { signRequest } from '@worldcoin/idkit-core/signing';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const SIGNING_KEY = process.env.RP_SIGNING_KEY!;
-const RP_ID = process.env.RP_ID;
-
 export async function POST(req: Request) {
-  if (!SIGNING_KEY) {
+  const signingKey = process.env.RP_SIGNING_KEY;
+  const rpId = process.env.RP_ID;
+
+  if (!signingKey) {
     return NextResponse.json(
       { error: 'RP_SIGNING_KEY not configured' },
       { status: 500 },
     );
   }
 
-  const { action } = await req.json();
-  const { sig, nonce, createdAt, expiresAt } = signRequest({
-    signingKeyHex: SIGNING_KEY,
-    action,
-  });
+  try {
+    const { action } = await req.json();
+    const { signRequest } = await import('@worldcoin/idkit-core/signing');
+    const { sig, nonce, createdAt, expiresAt } = signRequest({
+      signingKeyHex: signingKey,
+      action,
+    });
 
-  return NextResponse.json({
-    rp_id: RP_ID,
-    sig,
-    nonce,
-    created_at: createdAt,
-    expires_at: expiresAt,
-  });
+    return NextResponse.json({
+      rp_id: rpId,
+      sig,
+      nonce,
+      created_at: createdAt,
+      expires_at: expiresAt,
+    });
+  } catch (error: unknown) {
+    console.error('POST /api/rp-signature error:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to sign request' },
+      { status: 500 },
+    );
+  }
 }
