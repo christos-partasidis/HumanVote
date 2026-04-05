@@ -16,7 +16,7 @@ export async function GET() {
   } catch (error: unknown) {
     console.error("GET /api/competitions error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: String(error), message: error instanceof Error ? error.message : "unknown" },
       { status: 500 }
     );
   }
